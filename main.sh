@@ -52,25 +52,17 @@ net.ipv4.ip_forward=1
 net.ipv6.conf.all.disable_ipv6=1
 net.ipv6.conf.default.disable_ipv6=1
 EOF
-
-# Apply changes.
-sysctl -p
-
-# Set the ip tables.
-iptables -t nat -A POSTROUTING -s 10.0.0.0/8 -o eth0 -j MASQUERADE
-apt-get install -y iptables-persistent
-
 # Create downloads for the wgets.
 mkdir ~/Downloads
 cd ~/Downloads
 
 # Download wget source code.
-wget https://swupdate.openvpn.org/community/releases/openvpn-2.4.9.tar.gz
-tar xvf openvpn-2.4.9.tar.gz
+wget https://swupdate.openvpn.org/community/releases/openvpn-2.5.8.tar.gz
+tar xvf openvpn-2.5.8.tar.gz
 
 # Copy files to this folder.
-cp -r $DIR/patches/*.diff openvpn-2.4.9
-cd openvpn-2.4.9/
+cp -r $DIR/patches/*.diff openvpn-2.5.8
+cd openvpn-2.5.8/
 
 # Apply all patches
 patch -p1 < 02-tunnelblick-openvpn_xorpatch-a.diff
@@ -95,12 +87,12 @@ mkdir /etc/openvpn/client
 cd ~/Downloads
 
 # Download Easy-Rsa.
-wget https://github.com/OpenVPN/easy-rsa/archive/v3.0.7.tar.gz
-tar -xvzf v3.0.7.tar.gz
+wget https://github.com/OpenVPN/easy-rsa/archive/v3.1.2.tar.gz
+tar -xvzf v3.1.2.tar.gz
 
 # Create easy-rsa directories. There always seems to be a clone...
 mkdir -p /usr/share/easy-rsa/3
-cp -rf easy-rsa-3.0.7/* /usr/share/easy-rsa/3
+cp -rf easy-rsa-3.1.2/* /usr/share/easy-rsa/3
 
 # Make the example the real file.
 cd /usr/share/easy-rsa/3/easyrsa3
@@ -162,53 +154,7 @@ verb 3
 scramble obfuscate $openssh_hash
 EOF
 
-# Copy files from the downloads to the service.
-cp ~/Downloads/openvpn-2.4.9/distro/systemd/openvpn-server@.service.in /lib/systemd/system/openvpn-server@.service
 
-# Overwrite current service file to have the actual execstart directory.
-cat << EOF > /lib/systemd/system/openvpn-server@.service
-[Unit]
-Description=OpenVPN service for %I
-After=syslog.target network-online.target
-Wants=network-online.target
-Documentation=man:openvpn(8)
-Documentation=https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage
-Documentation=https://community.openvpn.net/openvpn/wiki/HOWTO
-
-[Service]
-Type=notify
-PrivateTmp=true
-WorkingDirectory=/etc/openvpn/server
-ExecStart=/usr/local/sbin/openvpn --status %t/openvpn-server/status-%i.log --status-version 2 --suppress-timestamps --confi>
-CapabilityBoundingSet=CAP_IPC_LOCK CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_SETGID CAP_SETUID CAP_SYS_CHROO>
-LimitNPROC=10
-DeviceAllow=/dev/null rw
-DeviceAllow=/dev/net/tun rw
-ProtectSystem=true
-ProtectHome=true
-KillMode=process
-RestartSec=5s
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Start service.
-systemctl start openvpn-server@$public_ip
-systemctl enable openvpn-server@$public_ip
-
-echo -e "\n############################################################################\n"
-echo -e "Server Status: $(systemctl show -p SubState --value openvpn-server@$public_ip)\n"
-echo -e "VPN IP: $public_ip"
-echo -e "OpenSSH Hash: $openssh_hash \n"
-echo -e "Make sure to take note of the location of the keys, you will need them later"
-echo -e "for the client. \n"
-echo -e "CA Cert: /etc/openvpn/ca.crt"
-echo -e "Client Cert: /etc/openvpn/client/adminpc.crt"
-echo -e "Client Private Key: /etc/openvpn/client/adminpc.key"
-echo -e "Server Public Key: /etc/openvpn/tls-crypt.key \n"
-echo -e "############################################################################\n"
 
 ###############################################
 # TODO
